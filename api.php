@@ -190,6 +190,28 @@ if ($method == 'POST') {
     exit;
 }
 
+// Endpoint 3: GET /api.php?rut=X (registros por RUT)
+if ($method == 'GET' && isset($_GET['rut'])) {
+    $rut = $_GET['rut'];
+    
+    if (empty($rut)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'RUT no válido']);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("SELECT * FROM totem_logs WHERE rut LIKE ? ORDER BY id DESC");
+    $stmt->execute(["%$rut%"]);
+    $data = $stmt->fetchAll();
+    
+    echo json_encode([
+        'success' => true,
+        'count' => $stmt->rowCount(),
+        'data' => $data
+    ]);
+    exit;
+}
+
 // Si no coincide con ningún endpoint válido
 http_response_code(404);
 echo json_encode(['success' => false, 'error' => 'Endpoint no encontrado']);

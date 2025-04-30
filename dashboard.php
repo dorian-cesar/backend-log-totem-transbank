@@ -1,6 +1,6 @@
 <?php
 // Configuración básica
-$api_url = 'backend-log-totem-transbank/api.php';
+$api_url = 'api.php';
 ?>
 
 <!DOCTYPE html>
@@ -42,10 +42,16 @@ $api_url = 'backend-log-totem-transbank/api.php';
         
         <div class="row mb-3">
             <div class="col-md-6">
-                <div class="input-group">
+                <div class="input-group mb-2">
                     <input type="number" class="form-control" id="searchId" placeholder="Buscar por ID">
                     <button class="btn btn-primary" id="searchBtn">
-                        <i class="bi bi-search"></i> Buscar
+                        <i class="bi bi-search"></i> Buscar ID
+                    </button>
+                </div>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="searchRut" placeholder="Buscar por RUT (ej: 12345678-9)">
+                    <button class="btn btn-primary" id="searchRutBtn">
+                        <i class="bi bi-search"></i> Buscar RUT
                     </button>
                 </div>
             </div>
@@ -111,11 +117,61 @@ $api_url = 'backend-log-totem-transbank/api.php';
         document.addEventListener('DOMContentLoaded', function() {
             loadAllRecords();
             
-            // Configurar eventos
+            document.getElementById('searchRutBtn').addEventListener('click', searchByRut);
             document.getElementById('searchBtn').addEventListener('click', searchRecord);
             document.getElementById('refreshBtn').addEventListener('click', loadAllRecords);
-        });
+        });    
         
+
+        // Función para buscar por RUT
+        function searchByRut() {
+            const rut = document.getElementById('searchRut').value.trim();
+            
+            if (!rut) {
+                showAlert('Por favor ingrese un RUT válido', 'warning');
+                return;
+            }
+            
+            // Limpiar resultados anteriores
+            const tbody = document.getElementById('recordsBody');
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center">Buscando...</td></tr>';
+            
+            fetch(`${apiUrl}?rut=${encodeURIComponent(rut)}`)
+                .then(response => response.json())
+                .then(data => {
+                    tbody.innerHTML = '';
+                    
+                    if (data.success && data.data.length > 0) {
+                        data.data.forEach(record => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${record.id}</td>
+                                <td>${record.rut}</td>
+                                <td>${record.origen}</td>
+                                <td>${record.destino}</td>
+                                <td>${record.fecha_viaje}</td>
+                                <td>${record.hora_viaje}</td>
+                                <td><span class="badge ${getStatusBadgeClass(record.estado_transaccion)}">${record.estado_transaccion}</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" onclick="viewRecordDetails(${record.id})">
+                                        <i class="bi bi-eye"></i> Ver
+                                    </button>
+                                </td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                        showAlert(`Se encontraron ${data.data.length} registros para el RUT ${rut}`, 'success');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No se encontraron registros para este RUT</td></tr>';
+                        showAlert('No se encontraron registros para este RUT', 'info');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('Error al buscar por RUT', 'danger');
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al buscar registros</td></tr>';
+                });
+        }
         // Función para cargar todos los registros
         function loadAllRecords() {
             fetch(apiUrl)
@@ -174,7 +230,7 @@ $api_url = 'backend-log-totem-transbank/api.php';
                     console.error('Error:', error);
                     showAlert('Error al buscar el registro', 'danger');
                 });
-        }
+        }        
         
         // Función para ver detalles de un registro
         function viewRecordDetails(id) {
@@ -184,24 +240,55 @@ $api_url = 'backend-log-totem-transbank/api.php';
                     if (data.success) {
                         const record = data.data;
                         document.getElementById('modalBody').innerHTML = `
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>ID:</strong> ${record.id}</p>
-                                    <p><strong>RUT:</strong> ${record.rut}</p>
-                                    <p><strong>Origen:</strong> ${record.origen}</p>
-                                    <p><strong>Destino:</strong> ${record.destino}</p>
-                                    <p><strong>Fecha Viaje:</strong> ${record.fecha_viaje}</p>
+                            <div class="container-fluid">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5 class="mb-3">Información del Pasajero</h5>
+                                        <div class="mb-3">
+                                            <p><strong>ID:</strong> ${record.id}</p>
+                                            <p><strong>RUT:</strong> ${record.rut}</p>
+                                            <p><strong>Número de Tótem:</strong> ${record.numTotem || 'N/A'}</p>
+                                        </div>
+                                        
+                                        <h5 class="mb-3">Información del Viaje</h5>
+                                        <div class="mb-3">
+                                            <p><strong>Origen:</strong> ${record.origen}</p>
+                                            <p><strong>Destino:</strong> ${record.destino}</p>
+                                            <p><strong>Fecha Viaje:</strong> ${record.fecha_viaje}</p>
+                                            <p><strong>Hora Viaje:</strong> ${record.hora_viaje}</p>
+                                            <p><strong>Asiento:</strong> ${record.asiento}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <h5 class="mb-3">Información de la Reserva</h5>
+                                        <div class="mb-3">
+                                            <p><strong>Código Reserva:</strong> ${record.codigo_reserva || 'N/A'}</p>
+                                            <p><strong>Estado Boleto:</strong> <span class="badge ${getStatusBadgeClass(record.estado_boleto)}">${record.estado_boleto}</span></p>
+                                            <p><strong>Código Confirmación:</strong> ${record.codigo_confirmacion || 'N/A'}</p>
+                                        </div>
+                                        
+                                        <h5 class="mb-3">Información de Transacción</h5>
+                                        <div class="mb-3">
+                                            <p><strong>Código Transacción:</strong> ${record.codigo_transaccion || 'N/A'}</p>
+                                            <p><strong>Estado Transacción:</strong> <span class="badge ${getStatusBadgeClass(record.estado_transaccion)}">${record.estado_transaccion}</span></p>
+                                            <p><strong>Número Transacción:</strong> ${record.numero_transaccion || 'N/A'}</p>
+                                            <p><strong>Fecha Transacción:</strong> ${record.fecha_transaccion || 'N/A'}</p>
+                                            <p><strong>Hora Transacción:</strong> ${record.hora_transaccion || 'N/A'}</p>
+                                            <p><strong>Total Transacción:</strong> ${record.total_transaccion ? '$' + record.total_transaccion : 'N/A'}</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <p><strong>Hora Viaje:</strong> ${record.hora_viaje}</p>
-                                    <p><strong>Asiento:</strong> ${record.asiento}</p>
-                                    <p><strong>Código Reserva:</strong> ${record.codigo_reserva}</p>
-                                    <p><strong>Código Venta:</strong> ${record.codigo_venta}</p>
-                                    <p><strong>Estado:</strong> <span class="badge ${getStatusBadgeClass(record.estado_transaccion)}">${record.estado_transaccion}</span></p>
+                                
+                                <hr>
+                                
+                                <div class="row">
+                                    <div class="col-12">
+                                        <p><strong>Fecha de Creación:</strong> ${new Date(record.created_at).toLocaleString()}</p>
+                                        ${record.updated_at ? `<p><strong>Última Actualización:</strong> ${new Date(record.updated_at).toLocaleString()}</p>` : ''}
+                                    </div>
                                 </div>
                             </div>
-                            <hr>
-                            <p><strong>Creado:</strong> ${new Date(record.created_at).toLocaleString()}</p>
                         `;
                         detailsModal.show();
                     } else {
@@ -216,11 +303,23 @@ $api_url = 'backend-log-totem-transbank/api.php';
         
         // Función auxiliar para obtener clase CSS según estado
         function getStatusBadgeClass(status) {
+            if (!status) return 'bg-secondary';
+            
+            status = status.toLowerCase();
             switch(status) {
-                case 'confirmada': return 'badge-confirmada';
-                case 'pendiente': return 'badge-pendiente';
-                case 'cancelada': return 'badge-cancelada';
-                default: return 'bg-secondary';
+                case 'confirmada':
+                case 'aprobada':
+                case 'success':
+                    return 'badge-confirmada';
+                case 'pendiente':
+                case 'pending':
+                    return 'badge-pendiente';
+                case 'cancelada':
+                case 'rechazada':
+                case 'failed':
+                    return 'badge-cancelada';
+                default: 
+                    return 'bg-secondary';
             }
         }
         
