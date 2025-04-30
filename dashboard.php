@@ -123,92 +123,72 @@ $api_url = 'api.php';
         });    
         
 
+       // Función reutilizable para mostrar registros
+        function renderRecords(data, rut = null) {
+            const tbody = document.getElementById('recordsBody');
+            tbody.innerHTML = '';
+
+            if (data.success && data.data.length > 0) {
+                data.data.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${record.id}</td>
+                        <td>${record.rut}</td>
+                        <td>${record.origen}</td>
+                        <td>${record.destino}</td>
+                        <td>${record.fecha_viaje}</td>
+                        <td>${record.hora_viaje}</td>
+                        <td><span class="badge ${getStatusBadgeClass(record.estado_transaccion)}">${record.estado_transaccion}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-info" onclick="viewRecordDetails(${record.id})">
+                                <i class="bi bi-eye"></i> Ver
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                if (rut) {
+                    showAlert(`Se encontraron ${data.data.length} registros para el RUT ${rut}`, 'success');
+                }
+            } else {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center">${rut ? 'No se encontraron registros para este RUT' : 'No hay registros disponibles'}</td></tr>`;
+                showAlert(rut ? 'No se encontraron registros para este RUT' : 'No hay registros disponibles', 'info');
+            }
+        }
+
+        // Función genérica para obtener registros
+        function fetchRecords(endpoint, rut = null) {
+            const tbody = document.getElementById('recordsBody');
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center">Buscando...</td></tr>';
+
+            fetch(endpoint)
+                .then(response => response.json())
+                .then(data => renderRecords(data, rut))
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('Error al buscar registros', 'danger');
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al buscar registros</td></tr>';
+                });
+        }
+
         // Función para buscar por RUT
         function searchByRut() {
             const rut = document.getElementById('searchRut').value.trim();
-            
+
             if (!rut) {
                 showAlert('Por favor ingrese un RUT válido', 'warning');
                 return;
             }
-            
-            // Limpiar resultados anteriores
-            const tbody = document.getElementById('recordsBody');
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center">Buscando...</td></tr>';
-            
-            fetch(`${apiUrl}?rut=${encodeURIComponent(rut)}`)
-                .then(response => response.json())
-                .then(data => {
-                    tbody.innerHTML = '';
-                    
-                    if (data.success && data.data.length > 0) {
-                        data.data.forEach(record => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${record.id}</td>
-                                <td>${record.rut}</td>
-                                <td>${record.origen}</td>
-                                <td>${record.destino}</td>
-                                <td>${record.fecha_viaje}</td>
-                                <td>${record.hora_viaje}</td>
-                                <td><span class="badge ${getStatusBadgeClass(record.estado_transaccion)}">${record.estado_transaccion}</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-info" onclick="viewRecordDetails(${record.id})">
-                                        <i class="bi bi-eye"></i> Ver
-                                    </button>
-                                </td>
-                            `;
-                            tbody.appendChild(row);
-                        });
-                        showAlert(`Se encontraron ${data.data.length} registros para el RUT ${rut}`, 'success');
-                    } else {
-                        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No se encontraron registros para este RUT</td></tr>';
-                        showAlert('No se encontraron registros para este RUT', 'info');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlert('Error al buscar por RUT', 'danger');
-                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al buscar registros</td></tr>';
-                });
+
+            fetchRecords(`${apiUrl}?rut=${encodeURIComponent(rut)}`, rut);
         }
+
         // Función para cargar todos los registros
         function loadAllRecords() {
-            fetch(apiUrl)
-                .then(response => response.json())
-                .then(data => {
-                    const tbody = document.getElementById('recordsBody');
-                    tbody.innerHTML = '';
-                    
-                    if (data.success && data.data.length > 0) {
-                        data.data.forEach(record => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${record.id}</td>
-                                <td>${record.rut}</td>
-                                <td>${record.origen}</td>
-                                <td>${record.destino}</td>
-                                <td>${record.fecha_viaje}</td>
-                                <td>${record.hora_viaje}</td>
-                                <td><span class="badge ${getStatusBadgeClass(record.estado_transaccion)}">${record.estado_transaccion}</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-info" onclick="viewRecordDetails(${record.id})">
-                                        <i class="bi bi-eye"></i> Ver
-                                    </button>
-                                </td>
-                            `;
-                            tbody.appendChild(row);
-                        });
-                    } else {
-                        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay registros disponibles</td></tr>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlert('Error al cargar los registros', 'danger');
-                });
+            fetchRecords(apiUrl);
         }
-        
+
         // Función para buscar un registro por ID
         function searchRecord() {
             const id = document.getElementById('searchId').value;
@@ -301,25 +281,28 @@ $api_url = 'api.php';
                 });
         }
         
+        
         // Función auxiliar para obtener clase CSS según estado
         function getStatusBadgeClass(status) {
             if (!status) return 'bg-secondary';
             
             status = status.toLowerCase();
             switch(status) {
+                case 'pago realizado':
                 case 'confirmada':
                 case 'aprobada':
                 case 'success':
-                    return 'badge-confirmada';
+                    return 'badge-confirmada'; // Verde
                 case 'pendiente':
                 case 'pending':
-                    return 'badge-pendiente';
+                    return 'badge-pendiente'; // Amarillo
+                case 'pago fallido':
                 case 'cancelada':
                 case 'rechazada':
                 case 'failed':
-                    return 'badge-cancelada';
+                    return 'badge-cancelada'; // Rojo
                 default: 
-                    return 'bg-secondary';
+                    return 'bg-secondary'; // Gris para estados desconocidos
             }
         }
         
