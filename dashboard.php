@@ -1,6 +1,6 @@
 <?php
 // Configuración básica
-$api_url = 'http://localhost/backend-log-totem-transbank/api.php';
+$api_url = 'backend-log-totem-transbank/api.php';
 ?>
 
 <!DOCTYPE html>
