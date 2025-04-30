@@ -1,14 +1,38 @@
 <?php
-// Configuración de headers para respuestas JSON y CORS
-header("Content-Type: application/json"); 
-header("Access-Control-Allow-Origin: *"); 
-header("Access-Control-Allow-Methods: GET, POST"); 
-header("Access-Control-Allow-Headers: Content-Type"); 
+// Configuración de headers CORS más completa
+header("Content-Type: application/json");
 
-// Incluye el archivo de configuración de la base de datos
+// Manejo de CORS más robusto
+$allowedOrigins = [
+    "http://localhost",
+    "http://127.0.0.1",
+    "http://0.0.0.0:8080", // Añadido para desarrollo
+    "https://tudominio.com",
+];
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+if (in_array($origin, $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    // Si estás en desarrollo, puedes permitir cualquier origen
+    header("Access-Control-Allow-Origin: *");
+}
+
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Max-Age: 86400"); // Cache preflight por 1 día
+
+// Manejar petición OPTIONS para CORS preflight
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+// Resto de tu código (conexión a DB, endpoints, etc.)
 require_once __DIR__ . '/config/db.php';
 
-// Intenta establecer conexión con la base de datos
 try {
     $pdo = Database::getInstance();
 } catch (Exception $e) {
@@ -17,7 +41,6 @@ try {
     exit;
 }
 
-// Obtiene el método HTTP utilizado en la petición
 $method = $_SERVER['REQUEST_METHOD'];
 
 // Endpoint 1: GET /api.php (todos los registros)
@@ -56,54 +79,96 @@ if ($method == 'GET' && isset($_GET['id'])) {
 
 // Endpoint 3: POST /api.php (crear nuevo registro)
 if ($method == 'POST') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    
+    // Obtener y decodificar el input
+    $rawInput = file_get_contents('php://input');
+    $input = json_decode($rawInput, true);
+
+    // Manejar datos anidados (tanto 'data' como 'bookingData')
+    if (isset($input['bookingData']) && is_array($input['bookingData'])) {
+        $input = $input['bookingData'];
+    } elseif (isset($input['data']) && is_array($input['data'])) {
+        $input = $input['data'];
+    }
+
+    // Debugging (solo en desarrollo)
+    if (($_ENV['APP_ENV'] ?? 'production') === 'development') {
+        error_log("Raw input: " . $rawInput);
+        error_log("Processed input: " . print_r($input, true));
+    }
+
+    // Validar JSON
     if (json_last_error() !== JSON_ERROR_NONE) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'JSON inválido']);
+        echo json_encode([
+            'success' => false, 
+            'error' => 'JSON inválido',
+            'details' => json_last_error_msg()
+        ]);
         exit;
     }
-    
-    $required = ['rut', 'origen', 'destino', 'fecha_viaje', 'hora_viaje', 'asiento', 
-                'codigo_reserva', 'codigo_venta', 'codigo_confirmacion', 'estado_transaccion'];
-    
+
+    // Campos requeridos
+    $required = [
+        'rut', 
+        'origen', 
+        'destino', 
+        'fecha_viaje', 
+        'hora_viaje', 
+        'asiento',
+        //'codigo_reserva',
+        'estado_boleto'
+    ];
+
+    // Validar campos requeridos
     $missing = [];
     foreach ($required as $field) {
-        if (!isset($input[$field])) {
+        if (!isset($input[$field]) || $input[$field] === '') {
             $missing[] = $field;
         }
     }
-    
+
     if (!empty($missing)) {
         http_response_code(400);
         echo json_encode([
             'success' => false,
-            'error' => 'Campos requeridos faltantes',
-            'missing_fields' => $missing
+            'error' => 'Datos incompletos',
+            'missing_fields' => $missing,
+            'received_fields' => array_keys($input)
         ]);
         exit;
     }
+
     
     try {
+        // Insertar en la base de datos
         $sql = "INSERT INTO totem_logs (
-            rut, origen, destino, fecha_viaje, hora_viaje, asiento, 
-            codigo_reserva, codigo_venta, codigo_confirmacion, estado_transaccion, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            numTotem, rut, origen, destino, fecha_viaje, hora_viaje, asiento, 
+            codigo_reserva, estado_boleto, codigo_confirmacion, 
+            codigo_transaccion, estado_transaccion, numero_transaccion, 
+            fecha_transaccion, hora_transaccion, total_transaccion, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
+            $input['numTotem'] ?? null,
             $input['rut'],
             $input['origen'],
             $input['destino'],
             $input['fecha_viaje'],
             $input['hora_viaje'],
             $input['asiento'],
-            $input['codigo_reserva'],
-            $input['codigo_venta'],
-            $input['codigo_confirmacion'],
-            $input['estado_transaccion']
+            $input['codigo_reserva'],            
+            $input['estado_boleto'],
+            $input['codigo_confirmacion'] ?? null,
+            $input['codigo_transaccion'] ?? null,
+            $input['estado_transaccion'] ?? null,
+            $input['numero_transaccion'] ?? null,
+            $input['fecha_transaccion'] ?? null,
+            $input['hora_transaccion'] ?? null,
+            $input['total_transaccion'] ?? null
         ]);
         
+        // Respuesta exitosa
         http_response_code(201);
         echo json_encode([
             'success' => true,
@@ -113,11 +178,13 @@ if ($method == 'POST') {
         ]);
         
     } catch (PDOException $e) {
+        // Manejo de errores de base de datos
         http_response_code(500);
         echo json_encode([
             'success' => false,
             'error' => 'Error al crear registro',
-            'details' => $e->getMessage()
+            'details' => $e->getMessage(),
+            'sql_state' => $e->errorInfo[0] ?? null
         ]);
     }
     exit;
