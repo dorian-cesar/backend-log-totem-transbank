@@ -170,8 +170,8 @@ if ($method == 'POST') {
         'hora_viaje', 
         'asiento',
         'codigo_reserva',
-        'codigo_autorizacion',
-        'id_pos',
+        // 'codigo_autorizacion',
+        // 'id_pos',
         //'numero_boleto',
         'estado_boleto'
     ];
