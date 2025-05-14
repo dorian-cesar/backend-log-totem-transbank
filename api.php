@@ -115,7 +115,8 @@ if ($method == 'POST') {
         'fecha_viaje', 
         'hora_viaje', 
         'asiento',
-        //'codigo_reserva',
+        'codigo_reserva',
+        'numero_boleto',
         'estado_boleto'
     ];
 
@@ -143,10 +144,10 @@ if ($method == 'POST') {
         // Insertar en la base de datos
         $sql = "INSERT INTO totem_logs (
             numTotem, rut, origen, destino, fecha_viaje, hora_viaje, asiento, 
-            codigo_reserva, estado_boleto, codigo_confirmacion, 
+            codigo_reserva, numero_boleto, estado_boleto, codigo_confirmacion, 
             codigo_transaccion, estado_transaccion, numero_transaccion, 
             fecha_transaccion, hora_transaccion, total_transaccion, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
@@ -157,7 +158,8 @@ if ($method == 'POST') {
             $input['fecha_viaje'],
             $input['hora_viaje'],
             $input['asiento'],
-            $input['codigo_reserva'],            
+            $input['codigo_reserva'],
+            $input['numero_boleto'],            
             $input['estado_boleto'],
             $input['codigo_confirmacion'] ?? null,
             $input['codigo_transaccion'] ?? null,
