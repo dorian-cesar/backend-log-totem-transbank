@@ -203,7 +203,7 @@ if ($method == 'POST') {
             codigo_reserva, codigo_autorizacion, id_pos, numero_boleto, estado_boleto, 
             codigo_transaccion, estado_transaccion, numero_transaccion, 
             fecha_transaccion, hora_transaccion, total_transaccion, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
