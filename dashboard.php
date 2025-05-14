@@ -138,6 +138,7 @@ $api_url = 'api.php';
                         <td>${record.destino}</td>
                         <td>${record.fecha_viaje}</td>
                         <td>${record.hora_viaje}</td>
+                        <td>${record.numero_boleto}</td>
                         <td><span class="badge ${getStatusBadgeClass(record.estado_transaccion)}">${record.estado_transaccion}</span></td>
                         <td>
                             <button class="btn btn-sm btn-info" onclick="viewRecordDetails(${record.id})">
@@ -253,6 +254,7 @@ $api_url = 'api.php';
                                             <p><strong>Código Transacción:</strong> ${record.codigo_transaccion || 'N/A'}</p>
                                             <p><strong>Estado Transacción:</strong> <span class="badge ${getStatusBadgeClass(record.estado_transaccion)}">${record.estado_transaccion}</span></p>
                                             <p><strong>Número Transacción:</strong> ${record.numero_transaccion || 'N/A'}</p>
+     <--                                    <p><strong>Número de boleto:</strong> ${record.numero_boleto || 'N/A'}</p>
                                             <p><strong>Fecha Transacción:</strong> ${record.fecha_transaccion || 'N/A'}</p>
                                             <p><strong>Hora Transacción:</strong> ${record.hora_transaccion || 'N/A'}</p>
                                             <p><strong>Total Transacción:</strong> ${record.total_transaccion ? '$' + record.total_transaccion : 'N/A'}</p>
