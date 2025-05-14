@@ -45,7 +45,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // Endpoint 1: GET /api.php (todos los registros)
 if ($method == 'GET' && empty($_GET)) {
-    $stmt = $pdo->query("SELECT * FROM totem_logs");
+    $stmt = $pdo->query("SELECT * FROM totem_logs ORDER BY id DESC");
     echo json_encode([
         'success' => true,
         'count' => $stmt->rowCount(),
