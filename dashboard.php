@@ -94,6 +94,16 @@ $api_url = 'api.php';
                         </tbody>
                     </table>
                 </div>
+                <div class="card-footer">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center" id="pagination">
+                            <!-- Los elementos de paginación se generarán dinámicamente -->
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted" id="paginationInfo">
+                        Mostrando página 1 de 1
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -127,8 +137,21 @@ $api_url = 'api.php';
 
             document.getElementById('searchRutBtn').addEventListener('click', searchByRut);
             document.getElementById('searchBtn').addEventListener('click', searchRecord);
-            document.getElementById('refreshBtn').addEventListener('click', loadAllRecords);
+            document.getElementById('refreshBtn').addEventListener('click', function() {
+                currentPage = 1;
+                if (currentSearchType === 'rut') {
+                    searchByRut(currentSearchTerm);
+                } else {
+                    loadAllRecords();
+                }
+            });
         });
+
+        // Variables globales para la paginación
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentSearchType = 'all'; // 'all', 'id', 'rut'
+        let currentSearchTerm = '';
 
 
         // Función reutilizable para mostrar registros
@@ -157,19 +180,105 @@ $api_url = 'api.php';
                     tbody.appendChild(row);
                 });
 
+                // Actualizar información de paginación
+                currentPage = data.current_page || 1;
+                totalPages = data.total_pages || 1;
+                updatePaginationControls();
+                document.getElementById('paginationInfo').textContent = 
+                    `Mostrando página ${currentPage} de ${totalPages} - Total registros: ${data.total || data.count}`;
+
                 if (rut) {
-                    showAlert(`Se encontraron ${data.data.length} registros para el RUT ${rut}`, 'success');
+                    showAlert(`Se encontraron ${data.total || data.count} registros para el RUT ${rut}`, 'success');
                 }
             } else {
                 tbody.innerHTML = `<tr><td colspan="12" class="text-center">${rut ? 'No se encontraron registros para este RUT' : 'No hay registros disponibles'}</td></tr>`;
+                document.getElementById('paginationInfo').textContent = 'No hay registros para mostrar';
                 showAlert(rut ? 'No se encontraron registros para este RUT' : 'No hay registros disponibles', 'info');
             }
         }
 
-        // Función genérica para obtener registros
+        // Función para actualizar los controles de paginación
+        function updatePaginationControls() {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            // Botón Anterior
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Anterior</a>`;
+            pagination.appendChild(prevLi);
+
+            // Mostrar páginas cercanas a la actual
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+
+            // Primera página si no está visible
+            if (startPage > 1) {
+                const firstLi = document.createElement('li');
+                firstLi.className = 'page-item';
+                firstLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(1)">1</a>`;
+                pagination.appendChild(firstLi);
+                
+                if (startPage > 2) {
+                    const ellipsisLi = document.createElement('li');
+                    ellipsisLi.className = 'page-item disabled';
+                    ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+                    pagination.appendChild(ellipsisLi);
+                }
+            }
+
+            // Páginas visibles
+            for (let i = startPage; i <= endPage; i++) {
+                const pageLi = document.createElement('li');
+                pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                pageLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i})">${i}</a>`;
+                pagination.appendChild(pageLi);
+            }
+
+            // Última página si no está visible
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const ellipsisLi = document.createElement('li');
+                    ellipsisLi.className = 'page-item disabled';
+                    ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+                    pagination.appendChild(ellipsisLi);
+                }
+                
+                const lastLi = document.createElement('li');
+                lastLi.className = 'page-item';
+                lastLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${totalPages})">${totalPages}</a>`;
+                pagination.appendChild(lastLi);
+            }
+
+            // Botón Siguiente
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Siguiente</a>`;
+            pagination.appendChild(nextLi);
+        }
+
+        // Función para cambiar de página
+        function changePage(page) {
+            if (page < 1 || page > totalPages) return;
+            
+            currentPage = page;
+            
+            if (currentSearchType === 'all') {
+                loadAllRecords();
+            } else if (currentSearchType === 'rut') {
+                searchByRut(currentSearchTerm, false);
+            }
+        }
+
+         // Función genérica para obtener registros
         function fetchRecords(endpoint, rut = null) {
             const tbody = document.getElementById('recordsBody');
             tbody.innerHTML = '<tr><td colspan="12" class="text-center">Buscando...</td></tr>';
+
+            // Añadir parámetro de paginación si no está presente
+            if (!endpoint.includes('page=')) {
+                endpoint += (endpoint.includes('?') ? '&' : '?') + `page=${currentPage}`;
+            }
 
             fetch(endpoint)
                 .then(response => response.json())
@@ -182,21 +291,31 @@ $api_url = 'api.php';
         }
 
         // Función para buscar por RUT
-        function searchByRut() {
-            const rut = document.getElementById('searchRut').value.trim();
-
-            if (!rut) {
+        function searchByRut(rut = null, resetPage = true) {
+            const rutInput = rut || document.getElementById('searchRut').value.trim();
+            
+            if (!rutInput) {
                 showAlert('Por favor ingrese un RUT válido', 'warning');
                 return;
             }
 
-            fetchRecords(`${apiUrl}?rut=${encodeURIComponent(rut)}`, rut);
+            if (resetPage) {
+                currentPage = 1;
+            }
+            
+            currentSearchType = 'rut';
+            currentSearchTerm = rutInput;
+            
+            fetchRecords(`${apiUrl}?rut=${encodeURIComponent(rutInput)}`, rutInput);
         }
 
         // Función para cargar todos los registros
         function loadAllRecords() {
+            currentPage = 1;
+            currentSearchType = 'all';
+            currentSearchTerm = '';
             fetchRecords(apiUrl);
-        }
+        }   
 
         // Función para buscar un registro por ID
         function searchRecord() {
@@ -338,7 +457,7 @@ $api_url = 'api.php';
                 alert.remove();
             }, 5000);
         }
-    </script>
+    </script>    
 </body>
 
 </html>

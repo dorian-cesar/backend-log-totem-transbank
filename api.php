@@ -43,13 +43,32 @@ try {
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Endpoint 1: GET /api.php (todos los registros)
-if ($method == 'GET' && empty($_GET)) {
-    $stmt = $pdo->query("SELECT * FROM totem_logs ORDER BY id DESC");
+// Endpoint 1: GET /api.php (todos los registros con paginación)
+if ($method == 'GET' && empty($_GET)) {  // <-- Quitar el paréntesis adicional
+    // Parámetros de paginación
+    $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+    $perPage = 200;
+    $offset = ($page - 1) * $perPage;
+
+    // Consulta para contar el total de registros
+    $totalStmt = $pdo->query("SELECT COUNT(*) as total FROM totem_logs");
+    $total = $totalStmt->fetch()['total'];
+    $totalPages = ceil($total / $perPage);
+
+    // Modificar la consulta para usar placeholders ?
+    $stmt = $pdo->prepare("SELECT * FROM totem_logs ORDER BY id DESC LIMIT ? OFFSET ?");
+    $stmt->bindValue(1, $perPage, PDO::PARAM_INT);
+    $stmt->bindValue(2, $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    
     echo json_encode([
         'success' => true,
         'count' => $stmt->rowCount(),
-        'data' => $stmt->fetchAll()
+        'total' => $total,
+        'total_pages' => $totalPages,
+        'current_page' => $page,
+        'per_page' => $perPage,
+        'data' => $stmt->fetchAll(PDO::FETCH_ASSOC) // Asegurar array asociativo
     ]);
     exit;
 }
@@ -77,7 +96,42 @@ if ($method == 'GET' && isset($_GET['id'])) {
     exit;
 }
 
-// Endpoint 3: POST /api.php (crear nuevo registro)
+// Endpoint 3: GET /api.php?rut=X (registros por RUT con paginación)
+if ($method == 'GET' && isset($_GET['rut'])) {
+    $rut = $_GET['rut'];
+    $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+    $perPage = 200;
+    $offset = ($page - 1) * $perPage;
+    
+    if (empty($rut)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'RUT no válido']);
+        exit;
+    }
+
+    // Consulta para contar el total de registros para este RUT
+    $totalStmt = $pdo->prepare("SELECT COUNT(*) as total FROM totem_logs WHERE rut LIKE ?");
+    $totalStmt->execute(["%$rut%"]);
+    $total = $totalStmt->fetch()['total'];
+    $totalPages = ceil($total / $perPage);
+
+    // Consulta para obtener los registros paginados
+    $stmt = $pdo->prepare("SELECT * FROM totem_logs WHERE rut LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?");
+    $stmt->execute(["%$rut%", $perPage, $offset]);
+    
+    echo json_encode([
+        'success' => true,
+        'count' => $stmt->rowCount(),
+        'total' => $total,
+        'total_pages' => $totalPages,
+        'current_page' => $page,
+        'per_page' => $perPage,
+        'data' => $stmt->fetchAll()
+    ]);
+    exit;
+}
+
+// Endpoint 4: POST /api.php (crear nuevo registro)
 if ($method == 'POST') {
     // Obtener y decodificar el input
     $rawInput = file_get_contents('php://input');
@@ -116,6 +170,8 @@ if ($method == 'POST') {
         'hora_viaje', 
         'asiento',
         'codigo_reserva',
+        'codigo_autorizacion',
+        'id_pos',
         //'numero_boleto',
         'estado_boleto'
     ];
@@ -144,10 +200,10 @@ if ($method == 'POST') {
         // Insertar en la base de datos
         $sql = "INSERT INTO totem_logs (
             numTotem, rut, origen, destino, fecha_viaje, hora_viaje, asiento, 
-            codigo_reserva, numero_boleto, estado_boleto, 
+            codigo_reserva, codigo_autorizacion, id_pos, numero_boleto, estado_boleto, 
             codigo_transaccion, estado_transaccion, numero_transaccion, 
             fecha_transaccion, hora_transaccion, total_transaccion, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
@@ -161,7 +217,9 @@ if ($method == 'POST') {
             $input['codigo_reserva'],
             $input['numero_boleto'],            
             $input['estado_boleto'],            
+            $input['id_pos'] ?? null,
             $input['codigo_transaccion'] ?? null,
+            $input['codigo_autorizacion'] ?? null,
             $input['estado_transaccion'] ?? null,
             $input['numero_transaccion'] ?? null,
             $input['fecha_transaccion'] ?? null,
@@ -191,27 +249,6 @@ if ($method == 'POST') {
     exit;
 }
 
-// Endpoint 3: GET /api.php?rut=X (registros por RUT)
-if ($method == 'GET' && isset($_GET['rut'])) {
-    $rut = $_GET['rut'];
-    
-    if (empty($rut)) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'RUT no válido']);
-        exit;
-    }
-
-    $stmt = $pdo->prepare("SELECT * FROM totem_logs WHERE rut LIKE ? ORDER BY id DESC");
-    $stmt->execute(["%$rut%"]);
-    $data = $stmt->fetchAll();
-    
-    echo json_encode([
-        'success' => true,
-        'count' => $stmt->rowCount(),
-        'data' => $data
-    ]);
-    exit;
-}
 
 // Si no coincide con ningún endpoint válido
 http_response_code(404);
