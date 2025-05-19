@@ -162,7 +162,7 @@ if ($method == 'POST') {
 
     // Campos requeridos
     $required = [
-        'rut', 
+        //'rut', 
         'origen', 
         'destino', 
         'fecha_viaje', 
