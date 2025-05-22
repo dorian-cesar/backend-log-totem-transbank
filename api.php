@@ -200,9 +200,9 @@ if ($method == 'POST') {
         $sql = "INSERT INTO totem_logs (
             numTotem, rut, origen, destino, fecha_viaje, hora_viaje, asiento, 
             codigo_reserva, codigo_autorizacion, id_pos, numero_boleto, estado_boleto, 
-            codigo_transaccion, tipo_tarjeta, tarjeta_marca, estado_transaccion, numero_transaccion, 
+            codigo_transaccion, tipo_tarjeta, tarjeta_marca, id_bus,estado_transaccion, numero_transaccion, 
             fecha_transaccion, hora_transaccion, total_transaccion, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
@@ -221,6 +221,7 @@ if ($method == 'POST') {
             $input['codigo_transaccion'] ?? null,
             $input['tipo_tarjeta'] ?? null,
             $input['tarjeta_marca'] ?? null,
+            $input['id_bus'] ?? null,
             $input['estado_transaccion'] ?? null,
             $input['numero_transaccion'] ?? null,
             $input['fecha_transaccion'] ?? null,
