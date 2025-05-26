@@ -195,7 +195,19 @@ if ($method == 'POST') {
     }
 
     
-    try {
+     try {
+        // Procesar el campo error para convertirlo a JSON si es un array u objeto
+        $errorData = $input['error'] ?? null;
+        $errorJson = null;
+        
+        if ($errorData !== null) {
+            if (is_array($errorData) || is_object($errorData)) {
+                $errorJson = json_encode($errorData);
+            } else {
+                // Si es un string, podemos dejarlo como está o envolverlo en un JSON
+                $errorJson = json_encode(['message' => $errorData]);
+            }
+        }
         // Insertar en la base de datos
         $sql = "INSERT INTO totem_logs (
             numTotem, rut, origen, destino, fecha_viaje, hora_viaje, asiento, 
@@ -227,7 +239,7 @@ if ($method == 'POST') {
             $input['fecha_transaccion'] ?? null,
             $input['hora_transaccion'] ?? null,
             $input['total_transaccion'] ?? null,
-            $input['error'] ?? null
+            $errorJson,
         ]);
         
         // Respuesta exitosa
