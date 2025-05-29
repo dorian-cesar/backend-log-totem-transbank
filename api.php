@@ -209,13 +209,18 @@ if ($method == 'POST') {
             }
         }
         // Insertar en la base de datos
-        $sql = "INSERT INTO totem_logs (
-            numTotem, rut, origen, destino, fecha_viaje, hora_viaje, asiento, 
-            codigo_reserva, codigo_autorizacion, id_pos, numero_boleto, estado_boleto, 
-            codigo_transaccion, tipo_tarjeta, tarjeta_marca, id_bus, estado_transaccion, numero_transaccion, 
-            fecha_transaccion, hora_transaccion, total_transaccion, sitio, error, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,NOW())";
         
+        $sql = "INSERT INTO totem_logs (
+            numTotem, rut, origen, 
+            destino, fecha_viaje, hora_viaje, 
+            asiento, codigo_reserva, codigo_autorizacion,
+            id_pos, numero_boleto, estado_boleto, 
+            codigo_transaccion, tipo_tarjeta, tarjeta_marca,
+            id_bus, estado_transaccion, numero_transaccion, 
+            fecha_transaccion, hora_transaccion, total_transaccion,
+            sitio, error, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,NOW())";
+        echo $sql; // Debugging: Ver SQL generado
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $input['numTotem'] ?? null,
