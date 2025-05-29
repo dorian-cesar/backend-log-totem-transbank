@@ -213,8 +213,8 @@ if ($method == 'POST') {
             numTotem, rut, origen, destino, fecha_viaje, hora_viaje, asiento, 
             codigo_reserva, codigo_autorizacion, id_pos, numero_boleto, estado_boleto, 
             codigo_transaccion, tipo_tarjeta, tarjeta_marca, id_bus, estado_transaccion, numero_transaccion, 
-            fecha_transaccion, hora_transaccion, total_transaccion, error, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,NOW())";
+            fecha_transaccion, hora_transaccion, total_transaccion, sitio, error, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,NOW())";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
@@ -239,6 +239,7 @@ if ($method == 'POST') {
             $input['fecha_transaccion'] ?? null,
             $input['hora_transaccion'] ?? null,
             $input['total_transaccion'] ?? null,
+            $input['sitio'] ?? null,
             $errorJson,
         ]);
         
